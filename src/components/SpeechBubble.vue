@@ -62,7 +62,6 @@
             class="close-btn" 
             title="关闭对话框 (ESC)" 
             @click.stop="handleClose"
-            @mousedown.stop="handleClose"
           >
             ✕
           </button>
@@ -177,15 +176,10 @@ const selectModel = (id: string) => {
   nextTick(() => emit('layout-change'))
 }
 
-let lastCloseTime = 0
 const handleClose = (e?: Event) => {
   if (e) {
     e.stopPropagation()
   }
-  const now = Date.now()
-  if (now - lastCloseTime < 250) return
-  lastCloseTime = now
-
   isModelMenuOpen.value = false
   emit('close')
 }
@@ -274,7 +268,7 @@ onUnmounted(() => {
 <style scoped>
 .speech-bubble-wrapper {
   position: absolute;
-  bottom: 110px;
+  bottom: 86px;
   left: 0;
   width: 100%;
   display: flex;
