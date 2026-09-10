@@ -141,3 +141,12 @@ with open(os.path.join(contents_dir, "Info.plist"), "w", encoding="utf-8") as f:
     f.write(info_plist.strip() + "\n")
 
 print(f"[Package] Successfully packaged app to: {APP_DIR}")
+
+parent_dir = os.path.dirname(PROJECT_DIR)
+parent_app_dir = os.path.join(parent_dir, "AntigravityPet.app")
+if os.path.exists(parent_dir) and parent_dir != PROJECT_DIR and parent_dir != "/":
+    if os.path.exists(parent_app_dir):
+        shutil.rmtree(parent_app_dir)
+    shutil.copytree(APP_DIR, parent_app_dir)
+    print(f"[Package] Also synchronized to: {parent_app_dir}")
+

@@ -8,6 +8,10 @@ class FloatingKeyPanel: NSPanel {
     override var canBecomeMain: Bool {
         return true
     }
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+        // 允许窗口完全自由移动至屏幕顶部/任意边界，不受系统顶部菜单栏默认限制拦截
+        return frameRect
+    }
 
     override func keyDown(with event: NSEvent) {
         // 支持 Cmd+Q 快捷键退出
@@ -72,7 +76,32 @@ class WindowBridgeHandler: NSObject, WKScriptMessageHandler {
             self.webView?.hitRects = newRects
         }
 
-        // 3. 彻底退出应用
+        // 3. 动态自适应窗口尺寸 (贴图紧凑盒 vs 气泡/菜单展开)
+        if message.name == "resizeWindow", let body = message.body as? [String: Any] {
+            if let newW = body["width"] as? Double, let newH = body["height"] as? Double {
+                let currentFrame = panel.frame
+                let targetW = CGFloat(newW)
+                let targetH = CGFloat(newH)
+
+                if abs(currentFrame.width - targetW) > 1 || abs(currentFrame.height - targetH) > 1 {
+                    // 保持底边角色中心点稳定对齐
+                    let deltaW = currentFrame.width - targetW
+                    let newX = currentFrame.origin.x + (deltaW / 2.0)
+                    var newY = currentFrame.origin.y
+
+                    // 如果高度增加且超出屏幕顶部，微调 y 使窗口可见
+                    if targetH > currentFrame.height, let screen = panel.screen ?? NSScreen.main {
+                        let topOverflow = (newY + targetH) - screen.visibleFrame.maxY
+                        if topOverflow > 0 {
+                            newY -= topOverflow
+                        }
+                    }
+                    panel.setFrame(NSRect(x: newX, y: newY, width: targetW, height: targetH), display: true, animate: false)
+                }
+            }
+        }
+
+        // 4. 彻底退出应用
         if message.name == "quitApp" {
             NSApp.terminate(nil)
         }
@@ -88,8 +117,9 @@ class DesktopPetApp: NSObject, NSApplicationDelegate {
         guard let screen = NSScreen.main else { return }
         let screenRect = screen.visibleFrame
         
-        let petWidth: CGFloat = 350
-        let petHeight: CGFloat = 310
+        // 初始采用角色紧凑尺寸 (180x115)，待前端加载完毕后精确双向同步
+        let petWidth: CGFloat = 180
+        let petHeight: CGFloat = 115
         
         let x = screenRect.maxX - petWidth - 30
         let y = screenRect.minY + 30
@@ -124,6 +154,7 @@ class DesktopPetApp: NSObject, NSApplicationDelegate {
         
         bridgeHandler = WindowBridgeHandler(panel: window, webView: webView)
         contentController.add(bridgeHandler, name: "moveWindow")
+        contentController.add(bridgeHandler, name: "resizeWindow")
         contentController.add(bridgeHandler, name: "updateHitRegions")
         contentController.add(bridgeHandler, name: "quitApp")
         

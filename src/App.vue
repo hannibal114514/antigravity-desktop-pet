@@ -196,14 +196,48 @@ const reportHitRegions = () => {
   (window as any).webkit.messageHandlers.updateHitRegions.postMessage(rects)
 }
 
+// 计算贴图紧凑盒尺寸
+const getCompactDimensions = (currentScale: number) => {
+  const w = Math.round(190 * currentScale + 28)
+  const h = Math.round(106 * currentScale + 30)
+  return { width: Math.max(120, w), height: Math.max(80, h) }
+}
+
+// 同步窗口物理尺寸至原生 Swift 层 (解决顶部大片透明遮盖与无法移动到屏幕顶部的问题)
+const syncWindowDimensions = () => {
+  if (!(window as any).webkit?.messageHandlers?.resizeWindow) return
+  const isExpanded = bubbleVisible.value || menuVisible.value
+  let targetW = 350
+  let targetH = 310
+
+  if (!isExpanded) {
+    const compact = getCompactDimensions(scale.value)
+    targetW = compact.width
+    targetH = compact.height
+  }
+
+  (window as any).webkit.messageHandlers.resizeWindow.postMessage({
+    width: targetW,
+    height: targetH,
+    expanded: isExpanded
+  })
+}
+
 const triggerReportHitRegionsDelayed = () => {
-  nextTick(reportHitRegions)
-  setTimeout(reportHitRegions, 50)
+  syncWindowDimensions()
+  nextTick(() => {
+    reportHitRegions()
+  })
+  setTimeout(() => {
+    syncWindowDimensions()
+    reportHitRegions()
+  }, 50)
   setTimeout(reportHitRegions, 150)
   setTimeout(reportHitRegions, 300)
 }
 
 watch([bubbleVisible, menuVisible, scale, opacity], () => {
+  syncWindowDimensions()
   triggerReportHitRegionsDelayed()
 })
 
@@ -392,7 +426,9 @@ const initAntigravitySSE = () => {
 onMounted(() => {
   resetIdleTimer()
   initAntigravitySSE()
+  syncWindowDimensions()
   triggerReportHitRegionsDelayed()
+  setTimeout(syncWindowDimensions, 100)
   setTimeout(reportHitRegions, 500)
   setTimeout(reportHitRegions, 1000)
   window.addEventListener('resize', reportHitRegions)
