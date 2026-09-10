@@ -1,0 +1,31 @@
+# macOS
+.DS_Store
+._*
+.AppleDouble
+.LSOverride
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+dist/
+dist-ssr/
+*.app
+AntigravityPetApp
+
+# Rust / Tauri
+src-tauri/target/
+
+# Logs & scratch
+*.log
+scratch/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
