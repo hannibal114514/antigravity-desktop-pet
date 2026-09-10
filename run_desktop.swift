@@ -62,7 +62,7 @@ class WindowBridgeHandler: NSObject, WKScriptMessageHandler {
         // 2. 命中测试矩形更新
         if message.name == "updateHitRegions", let rectsArray = message.body as? [[String: Any]] {
             var newRects: [NSRect] = []
-            let windowHeight = panel.frame.height
+            let windowHeight = self.webView?.bounds.height ?? panel.frame.height
             for r in rectsArray {
                 if let x = r["x"] as? Double,
                    let y = r["y"] as? Double,

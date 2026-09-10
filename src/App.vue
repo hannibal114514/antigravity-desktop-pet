@@ -33,7 +33,7 @@
       :currentState="petState"
       :currentModel="selectedModel"
       @update:model="(m) => selectedModel = m"
-      @close="bubbleVisible = false"
+      @close="closeBubble"
       @send="handleUserChat"
       @pet-click="onPetInteraction"
       @change-state="cycleState"
@@ -42,6 +42,19 @@
 
     <!-- 桌宠主体（贴底居中放置） -->
     <div class="pet-anchor" ref="petAnchorRef">
+      <!-- 唤出对话框的小气泡悬浮按钮 -->
+      <transition name="fade-bounce">
+        <button 
+          v-if="!bubbleVisible && !menuVisible"
+          class="summon-bubble-btn"
+          title="点击和我说说话 💬"
+          @mousedown.stop="openBubbleManually"
+          @click.stop="openBubbleManually"
+        >
+          <span class="bubble-icon">💬</span>
+        </button>
+      </transition>
+
       <PetCharacter
         :state="petState"
         :scale="scale"
@@ -153,17 +166,34 @@ const reportHitRegions = () => {
       })
     }
   }
+
+  // 1.5 唤出小气泡按钮区域 (气泡未展开时常驻，供随时唤出对话)
+  if (!bubbleVisible.value && !menuVisible.value) {
+    const summonBtnEl = document.querySelector('.summon-bubble-btn')
+    if (summonBtnEl) {
+      const r = summonBtnEl.getBoundingClientRect()
+      if (r.width > 0 && r.height > 0) {
+        rects.push({
+          x: Math.max(0, Math.round(r.left - 6)),
+          y: Math.max(0, Math.round(r.top - 6)),
+          width: Math.round(r.width + 12),
+          height: Math.round(r.height + 12)
+        })
+      }
+    }
+  }
   
   // 2. 气泡框区域 (仅在展开且未打开菜单时作为有效点击区域)
   if (bubbleVisible.value && !menuVisible.value) {
     const bubbleEl = document.querySelector('.speech-bubble-card')
     if (bubbleEl) {
       const r = bubbleEl.getBoundingClientRect()
+      // 适度增加 8px 外扩命中缓冲区，确保点击顶部关闭键、外边框与阴影边缘时 100% 捕获
       rects.push({
-        x: Math.round(r.left),
-        y: Math.round(r.top),
-        width: Math.round(r.width),
-        height: Math.round(r.height)
+        x: Math.max(0, Math.round(r.left - 8)),
+        y: Math.max(0, Math.round(r.top - 8)),
+        width: Math.round(r.width + 16),
+        height: Math.round(r.height + 16)
       })
     }
 
@@ -198,9 +228,9 @@ const reportHitRegions = () => {
 
 // 计算贴图紧凑盒尺寸
 const getCompactDimensions = (currentScale: number) => {
-  const w = Math.round(190 * currentScale + 28)
-  const h = Math.round(106 * currentScale + 30)
-  return { width: Math.max(120, w), height: Math.max(80, h) }
+  const w = Math.round(190 * currentScale + 40)
+  const h = Math.round(106 * currentScale + 48)
+  return { width: Math.max(140, w), height: Math.max(95, h) }
 }
 
 // 同步窗口物理尺寸至原生 Swift 层 (解决顶部大片透明遮盖与无法移动到屏幕顶部的问题)
@@ -257,6 +287,25 @@ const scheduleBubbleAutoHide = (delayMs = 15000) => {
     bubbleVisible.value = false
     triggerReportHitRegionsDelayed()
   }, delayMs)
+}
+
+// 彻底关闭对话气泡并释放音频/TTS资源
+const closeBubble = () => {
+  bubbleVisible.value = false
+  if (autoHideBubbleTimer) {
+    clearTimeout(autoHideBubbleTimer)
+    autoHideBubbleTimer = null
+  }
+  if (currentVoiceAudio) {
+    currentVoiceAudio.pause()
+    currentVoiceAudio = null
+  }
+  if (ttsAbortController) {
+    ttsAbortController.abort()
+    ttsAbortController = null
+  }
+  syncWindowDimensions()
+  triggerReportHitRegionsDelayed()
 }
 
 // 手动呼出对话框
@@ -467,5 +516,80 @@ onUnmounted(() => {
   align-items: center;
   justify-content: flex-end;
   pointer-events: auto; /* 仅桌宠自身接收鼠标事件 */
+}
+
+/* 唤出对话框的小气泡悬浮按钮 */
+.summon-bubble-btn {
+  position: absolute;
+  top: -16px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1.5px solid rgba(255, 107, 129, 0.35);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(255, 255, 255, 0.9) inset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  pointer-events: auto;
+  user-select: none;
+  animation: float-pulse 2.8s ease-in-out infinite;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* 扩展点击热区，防边缘漏触 */
+.summon-bubble-btn::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  right: -8px;
+  bottom: -8px;
+  cursor: pointer;
+}
+
+.summon-bubble-btn:hover {
+  background: #ff6b81;
+  border-color: #ff4757;
+  transform: scale(1.15) !important;
+  box-shadow: 0 6px 18px rgba(255, 107, 129, 0.45);
+}
+
+.summon-bubble-btn:hover .bubble-icon {
+  filter: brightness(1.2);
+}
+
+.summon-bubble-btn:active {
+  background: #e84118;
+  transform: scale(0.95) !important;
+}
+
+.bubble-icon {
+  font-size: 15px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+@keyframes float-pulse {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.fade-bounce-enter-active {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.fade-bounce-leave-active {
+  transition: all 0.15s ease;
+}
+.fade-bounce-enter-from, .fade-bounce-leave-to {
+  opacity: 0;
+  transform: scale(0.4) translateY(8px);
 }
 </style>

@@ -1,6 +1,10 @@
 <template>
   <div class="speech-bubble-wrapper">
-    <transition name="bubble-pop" @after-enter="$emit('layout-change')">
+    <transition 
+      name="bubble-pop" 
+      @after-enter="$emit('layout-change')"
+      @after-leave="$emit('layout-change')"
+    >
       <div 
         v-if="visible" 
         class="speech-bubble-card"
@@ -58,6 +62,7 @@
             class="close-btn" 
             title="关闭对话框 (ESC)" 
             @click.stop="handleClose"
+            @mousedown.stop="handleClose"
           >
             ✕
           </button>
@@ -172,7 +177,15 @@ const selectModel = (id: string) => {
   nextTick(() => emit('layout-change'))
 }
 
-const handleClose = () => {
+let lastCloseTime = 0
+const handleClose = (e?: Event) => {
+  if (e) {
+    e.stopPropagation()
+  }
+  const now = Date.now()
+  if (now - lastCloseTime < 250) return
+  lastCloseTime = now
+
   isModelMenuOpen.value = false
   emit('close')
 }
@@ -441,24 +454,44 @@ onUnmounted(() => {
 .status-dot.rest { background: #70a1ff; box-shadow: 0 0 4px #70a1ff; }
 
 .close-btn {
+  position: relative;
   background: rgba(0, 0, 0, 0.06);
   border: none;
   color: #747d8c;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: bold;
   cursor: pointer;
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+/* 扩展点击热区，避免边缘像素漏点 */
+.close-btn::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  right: -8px;
+  bottom: -8px;
+  cursor: pointer;
 }
 
 .close-btn:hover {
   background: #ff4757;
   color: #ffffff;
+  transform: scale(1.08);
+}
+
+.close-btn:active {
+  background: #e84118;
+  color: #ffffff;
+  transform: scale(0.92);
 }
 
 .bubble-content {
