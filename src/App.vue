@@ -69,7 +69,7 @@ const scale = ref(0.8)
 const opacity = ref(1.0)
 const soundEnabled = ref(true)
 const voiceEnabled = ref(localStorage.getItem('pet_voice_enabled') !== 'false')
-const currentVoice = ref(localStorage.getItem('pet_voice_persona') || 'changli')
+const currentVoice = ref(localStorage.getItem('pet_voice_persona') || 'custom_voice')
 
 watch(voiceEnabled, (val) => {
   localStorage.setItem('pet_voice_enabled', String(val))

@@ -60,13 +60,19 @@
 
         <!-- 伴读声线切换 -->
         <div class="menu-section">
-          <div class="section-label">伴读声线（Audio8 克隆）</div>
+          <div class="section-label">伴读声线（Audio8 原声克隆）</div>
           <div class="btn-group">
+            <button 
+              :class="{ active: currentVoice === 'custom_voice' }" 
+              @click="setVoice('custom_voice')"
+            >
+              🌟 专属原声
+            </button>
             <button 
               :class="{ active: currentVoice === 'changli' }" 
               @click="setVoice('changli')"
             >
-              🔥 长离 (默认)
+              🔥 长离
             </button>
             <button 
               :class="{ active: currentVoice === 'feibi' }" 
@@ -84,7 +90,7 @@
             <span class="action-hint">点击开启</span>
           </div>
           <div class="menu-item-toggle" @click="toggleVoice">
-            <span>🎙️ {{ currentVoice === 'feibi' ? '菲比' : '长离' }}原声朗读</span>
+            <span>🎙️ {{ voiceLabel }}朗读</span>
             <span class="toggle-status" :class="{ on: voiceEnabled }">{{ voiceEnabled ? '开' : '关' }}</span>
           </div>
           <div class="menu-item-toggle" @click="openVoiceFolder">
@@ -108,6 +114,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { sound } from '../utils/audio'
 
 const props = withDefaults(defineProps<{
@@ -119,7 +126,13 @@ const props = withDefaults(defineProps<{
   voiceEnabled: boolean
   currentVoice?: string
 }>(), {
-  currentVoice: 'changli'
+  currentVoice: 'custom_voice'
+})
+
+const voiceLabel = computed(() => {
+  if (props.currentVoice === 'custom_voice') return '专属原声'
+  if (props.currentVoice === 'feibi') return '菲比原声'
+  return '长离原声'
 })
 
 const emit = defineEmits<{

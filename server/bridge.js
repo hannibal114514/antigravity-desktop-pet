@@ -91,9 +91,36 @@ const OFFLINE_REPLIES_CHANGLI = {
   ]
 }
 
-function getOfflineReply(userText, voice = 'changli') {
+const OFFLINE_REPLIES_CUSTOM = {
+  status: [
+    '宝宝，我刚开好这个东西，一直在你身边守着呢~ ✨',
+    '后台一切都好顺畅呀，宝宝只管放心写代码就好啦 💕'
+  ],
+  pet: [
+    '呜哇~ 捏得脸蛋软乎乎的，宝宝今天想我了吗？(害羞笑)',
+    '最喜欢被宝宝摸摸了，整个人都软下来啦~ 💕'
+  ],
+  tired: [
+    '宝宝辛苦啦，看屏幕久了眼睛会累，快喝口水靠着我歇会儿吧~ ☕️',
+    '写代码别太拼啦，先伸个懒腰，我陪宝宝聊聊天呀~ 🌿'
+  ],
+  praise: [
+    '嘻嘻，听到宝宝夸我，脸颊都要开心到发烫啦~ 💕',
+    '宝宝才是最优秀的！有宝宝在身边我超级安心 ✨'
+  ],
+  default: [
+    '宝宝，我一直都在这里陪着你呢，今天有什么开心事和我说说嘛？',
+    '侧趴在小枕头上敲舒服，宝宝也要开开心心的呀~ (眯眼笑)',
+    '代码写得怎么样啦？遇到难处别着急，深呼吸一下哦 💕'
+  ]
+}
+
+function getOfflineReply(userText, voice = 'custom_voice') {
   const lower = (userText || '').toLowerCase()
-  const source = (voice === 'changli') ? OFFLINE_REPLIES_CHANGLI : OFFLINE_REPLIES
+  let source = OFFLINE_REPLIES_CUSTOM
+  if (voice === 'changli') source = OFFLINE_REPLIES_CHANGLI
+  else if (voice === 'feibi') source = OFFLINE_REPLIES
+
   if (lower.includes('状态') || lower.includes('agent') || lower.includes('antigravity') || lower.includes('运行')) {
     return source.status[Math.floor(Math.random() * source.status.length)]
   }
@@ -156,7 +183,7 @@ async function getOrCreatePetConversation(tier = 'flash') {
 }
 
 // 通过 Antigravity 本地原生 agentapi 呼叫模型，并所有对话持久化记录在同一个专属对话中
-async function callAntigravityAI(userPrompt, modelName = 'gemini-3.8-flash', voice = 'changli') {
+async function callAntigravityAI(userPrompt, modelName = 'gemini-3.8-flash', voice = 'custom_voice') {
   const tierMap = {
     'gemini-3.8-flash': 'flash',
     'gemini-3.8-pro': 'pro',
@@ -192,9 +219,14 @@ async function callAntigravityAI(userPrompt, modelName = 'gemini-3.8-flash', voi
     } catch (e) {}
   }
 
-  const personaHint = (voice === 'changli')
-    ? '[伴读角色：你是「长离」（今州令尹参事），深爱用户并称呼用户为「宝宝」，自称「长离」。请以温雅从容、关怀体贴的语气输出1句精炼短句（15-25字以内最佳，适合原声朗读），请勿长篇大论。]'
-    : '[伴读角色：你是少女桌宠「菲比」，深爱用户并称呼用户为「宝宝」，自称「菲比」。请以软糯可爱、元气亲昵的语气输出1句精炼短句（15-25字以内最佳），请勿长篇大论。]'
+  let personaHint = ''
+  if (voice === 'changli') {
+    personaHint = '[伴读角色：你是「长离」（今州令尹参事），深爱用户并称呼用户为「宝宝」，自称「长离」。请以温雅从容、关怀体贴的语气输出1句精炼短句（15-25字以内最佳，适合原声朗读），请勿长篇大论。]'
+  } else if (voice === 'feibi') {
+    personaHint = '[伴读角色：你是少女桌宠「菲比」，深爱用户并称呼用户为「宝宝」，自称「菲比」。请以软糯可爱、元气亲昵的语气输出1句精炼短句（15-25字以内最佳），请勿长篇大论。]'
+  } else {
+    personaHint = '[伴读角色：你是用户的专属心动少女桌宠，深爱用户并称呼用户为「宝宝」。你的声线甜美可爱、软糯自然。请以精炼亲昵、软糯日常（15-25字以内最佳，适合专属原声朗读）的语气输出1句短句，请勿长篇大论。]'
+  }
 
   const promptToSend = `${personaHint}\n用户说：${userPrompt}`
 
@@ -235,13 +267,18 @@ async function callAntigravityAI(userPrompt, modelName = 'gemini-3.8-flash', voi
 }
 
 // 备用：直连 Gemini API
-async function callGeminiAI(userPrompt, modelName = 'gemini-3.8-flash', voice = 'changli') {
+async function callGeminiAI(userPrompt, modelName = 'gemini-3.8-flash', voice = 'custom_voice') {
   const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
   if (!apiKey) return null
 
-  const systemInstruction = (voice === 'changli')
-    ? `你是「长离」（今州令尹参事·离火策士），深爱着用户并称呼用户为「宝宝」，自称「长离」。你的性格温润端雅、从容内敛。请以精炼优美（1句短句，15-25字以内，适合桌宠气泡与原声伴读）的语气回答宝宝。`
-    : `你是一个桌面宠物小精灵「菲比」，外表是可爱的金发少女。你深爱着用户，称呼用户为「宝宝」，自称「菲比」。请以精炼可爱（1句短句，15-25字以内）的语气回答宝宝。`
+  let systemInstruction = ''
+  if (voice === 'changli') {
+    systemInstruction = `你是「长离」（今州令尹参事·离火策士），深爱着用户并称呼用户为「宝宝」，自称「长离」。你的性格温润端雅、从容内敛。请以精炼优美（1句短句，15-25字以内，适合桌宠气泡与原声伴读）的语气回答宝宝。`
+  } else if (voice === 'feibi') {
+    systemInstruction = `你是一个桌面宠物小精灵「菲比」，外表是可爱的金发少女。你深爱着用户，称呼用户为「宝宝」，自称「菲比」。请以精炼可爱（1句短句，15-25字以内）的语气回答宝宝。`
+  } else {
+    systemInstruction = `你是用户的专属心动少女桌宠，深爱着用户并称呼用户为「宝宝」。你的声线软萌甜美，说话亲近随性。请以精炼可爱（1句短句，15-25字以内，适合专属原声伴读）的语气回答宝宝。`
+  }
 
   try {
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`
@@ -266,8 +303,8 @@ async function callGeminiAI(userPrompt, modelName = 'gemini-3.8-flash', voice = 
   return null
 }
 
-// Audio8 TTS 纯内存流式语音合成（支持长离、菲比，0 磁盘写入，不留任何硬盘垃圾）
-async function synthesizeVoice(text, voiceName = 'changli') {
+// Audio8 TTS 纯内存流式语音合成（支持专属原声、长离、菲比，0 磁盘写入，不留任何硬盘垃圾）
+async function synthesizeVoice(text, voiceName = 'custom_voice') {
   if (!text || typeof text !== 'string') return null
   
   // 1. 过滤动作描写括号、说明标签与常见 Emoji，仅保留自然口语
@@ -290,7 +327,19 @@ async function synthesizeVoice(text, voiceName = 'changli') {
     cleanText = cleanText.slice(0, 160)
   }
 
-  const targetVoice = (voiceName === 'feibi') ? 'feibi' : 'changli'
+  let targetVoice = 'custom_voice'
+  let destName = '专属原声_最新语音.wav'
+  if (voiceName === 'changli') {
+    targetVoice = 'changli'
+    destName = '长离_最新语音.wav'
+  } else if (voiceName === 'feibi') {
+    targetVoice = 'feibi'
+    destName = '菲比_最新语音.wav'
+  } else {
+    targetVoice = 'custom_voice'
+    destName = '专属原声_最新语音.wav'
+  }
+
   console.log(`[Audio8 TTS] Synthesizing speech for: "${cleanText}" (voice: ${targetVoice})`)
 
   try {
@@ -317,7 +366,6 @@ async function synthesizeVoice(text, voiceName = 'changli') {
 
       // 实时保存最新音频文件到“下载”文件夹，方便用户发给朋友（单文件覆盖，不堆积磁盘垃圾）
       try {
-        const destName = (targetVoice === 'changli') ? '长离_最新语音.wav' : '菲比_最新语音.wav'
         const downloadsDir = path.join(HOME_DIR, 'Downloads')
         const rootPath = path.join(downloadsDir, destName)
         const subFolder = path.join(downloadsDir, '桌宠语音')
@@ -399,7 +447,7 @@ const server = http.createServer(async (req, res) => {
         const userPrompt = data.message || ''
         const model = data.model || 'gemini-3.8-flash'
 
-        const voice = data.voice || 'changli'
+        const voice = data.voice || 'custom_voice'
 
         // 首选：在唯一的 Antigravity 常驻对话中追加交互，杜绝重复创建新会话
         let result = await callAntigravityAI(userPrompt, model, voice)
@@ -448,7 +496,7 @@ const server = http.createServer(async (req, res) => {
     req.on('end', async () => {
       try {
         const data = JSON.parse(body || '{}')
-        const audio = await synthesizeVoice(data.text || '', data.voice || 'changli')
+        const audio = await synthesizeVoice(data.text || '', data.voice || 'custom_voice')
         res.writeHead(200, { 'Content-Type': 'application/json' })
         res.end(JSON.stringify({ audio }))
       } catch (err) {
