@@ -42,20 +42,8 @@
 
     <!-- 桌宠主体（贴底居中放置） -->
     <div class="pet-anchor" ref="petAnchorRef">
-      <!-- 唤出对话框的小气泡悬浮按钮 -->
-      <transition name="fade-bounce">
-        <button 
-          v-if="!bubbleVisible && !menuVisible"
-          class="summon-bubble-btn"
-          title="点击和我说说话 💬"
-          @mousedown.stop="openBubbleManually"
-          @click.stop="openBubbleManually"
-        >
-          <span class="bubble-icon">💬</span>
-        </button>
-      </transition>
-
       <PetCharacter
+        ref="petCharacterRef"
         :state="petState"
         :scale="scale"
         :opacity="opacity"
@@ -76,8 +64,23 @@ import SpeechBubble from './components/SpeechBubble.vue'
 import ContextMenu from './components/ContextMenu.vue'
 import { sound } from './utils/audio'
 
-// 核心状态
+// 组件引用
+const petCharacterRef = ref<any>(null)
+
+// 核心状态（默认常态为睁眼 idle）
 const petState = ref<PetState>('idle')
+const savedState = localStorage.getItem('pet_state')
+if (savedState === 'idle' || savedState === 'sleep') {
+  petState.value = savedState as PetState
+} else {
+  petState.value = 'idle'
+  localStorage.setItem('pet_state', 'idle')
+}
+
+watch(petState, (val) => {
+  localStorage.setItem('pet_state', val)
+})
+
 const scale = ref(0.8)
 const opacity = ref(1.0)
 const soundEnabled = ref(true)
@@ -138,7 +141,7 @@ watch(selectedModel, (val) => {
 
 // 气泡对话框
 const bubbleVisible = ref(false)
-const bubbleMessage = ref('宝宝好呀！侧趴在枕头上敲舒服，今天有什么想和我聊聊的嘛？(眯眼笑)')
+const bubbleMessage = ref('宝宝好呀... 悄悄告诉你，人家宽松毛衣下面只穿了一点点，正乖乖趴着等你欺负呢~ 💕')
 const bubbleTag = ref('Antigravity')
 const agentStatus = ref<'active' | 'busy' | 'rest'>('active')
 
@@ -166,34 +169,18 @@ const reportHitRegions = () => {
       })
     }
   }
-
-  // 1.5 唤出小气泡按钮区域 (气泡未展开时常驻，供随时唤出对话)
-  if (!bubbleVisible.value && !menuVisible.value) {
-    const summonBtnEl = document.querySelector('.summon-bubble-btn')
-    if (summonBtnEl) {
-      const r = summonBtnEl.getBoundingClientRect()
-      if (r.width > 0 && r.height > 0) {
-        rects.push({
-          x: Math.max(0, Math.round(r.left - 6)),
-          y: Math.max(0, Math.round(r.top - 6)),
-          width: Math.round(r.width + 12),
-          height: Math.round(r.height + 12)
-        })
-      }
-    }
-  }
   
   // 2. 气泡框区域 (仅在展开且未打开菜单时作为有效点击区域)
   if (bubbleVisible.value && !menuVisible.value) {
     const bubbleEl = document.querySelector('.speech-bubble-card')
     if (bubbleEl) {
       const r = bubbleEl.getBoundingClientRect()
-      // 适度增加 8px 外扩命中缓冲区，确保点击顶部关闭键、外边框与阴影边缘时 100% 捕获
+      // 外扩 10px 命中缓冲区，确保点击顶部关闭键、输入框与阴影边缘时 100% 捕获
       rects.push({
-        x: Math.max(0, Math.round(r.left - 8)),
-        y: Math.max(0, Math.round(r.top - 8)),
-        width: Math.round(r.width + 16),
-        height: Math.round(r.height + 16)
+        x: Math.max(0, Math.round(r.left - 10)),
+        y: Math.max(0, Math.round(r.top - 10)),
+        width: Math.round(r.width + 20),
+        height: Math.round(r.height + 20)
       })
     }
 
@@ -215,10 +202,10 @@ const reportHitRegions = () => {
     if (menuEl) {
       const r = menuEl.getBoundingClientRect()
       rects.push({
-        x: Math.round(r.left),
-        y: Math.round(r.top),
-        width: Math.round(r.width),
-        height: Math.round(r.height)
+        x: Math.max(0, Math.round(r.left - 6)),
+        y: Math.max(0, Math.round(r.top - 6)),
+        width: Math.round(r.width + 12),
+        height: Math.round(r.height + 12)
       })
     }
   }
@@ -236,11 +223,16 @@ const getCompactDimensions = (currentScale: number) => {
 // 同步窗口物理尺寸至原生 Swift 层 (解决顶部大片透明遮盖与无法移动到屏幕顶部的问题)
 const syncWindowDimensions = () => {
   if (!(window as any).webkit?.messageHandlers?.resizeWindow) return
-  const isExpanded = bubbleVisible.value || menuVisible.value
-  let targetW = 350
-  let targetH = 310
+  let targetW = 320
+  let targetH = 290
 
-  if (!isExpanded) {
+  if (menuVisible.value) {
+    targetW = 320
+    targetH = 435 // 保证设置菜单完整展开，完成与退出按钮绝不截断
+  } else if (bubbleVisible.value) {
+    targetW = 320
+    targetH = 290 // 贴近角色的近距离对话气泡
+  } else {
     const compact = getCompactDimensions(scale.value)
     targetW = compact.width
     targetH = compact.height
@@ -249,7 +241,7 @@ const syncWindowDimensions = () => {
   (window as any).webkit.messageHandlers.resizeWindow.postMessage({
     width: targetW,
     height: targetH,
-    expanded: isExpanded
+    expanded: bubbleVisible.value || menuVisible.value
   })
 }
 
@@ -350,7 +342,7 @@ const handleUserChat = async (userText: string) => {
     if (res.ok) {
       const data = await res.json()
       bubbleMessage.value = data.reply || '宝宝，我一直在你身边哦 💕'
-      petState.value = 'squint'
+      petCharacterRef.value?.triggerReaction(2500)
       sound.playSquint()
       agentStatus.value = 'active'
       triggerReportHitRegionsDelayed()
@@ -378,12 +370,13 @@ const handleUserChat = async (userText: string) => {
         }).catch(() => {})
       }
     } else {
-      bubbleMessage.value = '宝宝，我一直在你身边陪你写代码哦 💕 (眯眼笑)'
+      bubbleMessage.value = '坏宝宝，快伸手摸摸我，人家等你等得身子都发烫啦~ 💕'
+      petCharacterRef.value?.triggerReaction(2500)
       agentStatus.value = 'active'
     }
   } catch (err) {
-    bubbleMessage.value = '宝宝，收到你的心意啦！今天写代码也要元气满满哦~ ✨'
-    petState.value = 'squint'
+    bubbleMessage.value = '宝宝身上好香好热呀，菲比就想趴在你身上当小挂件，一秒钟也不许离开我~ 💕'
+    petCharacterRef.value?.triggerReaction(2500)
     agentStatus.value = 'active'
   }
   
@@ -410,11 +403,13 @@ const cycleState = () => {
 // 点击/摸摸交互
 const onPetInteraction = () => {
   resetIdleTimer()
+  petCharacterRef.value?.triggerReaction(2500)
   const petSayings = [
-    '呼呼... 摸头好舒服 (眯眯眼~)',
-    '最喜欢宝宝捏我的婴儿肥脸蛋啦 💕',
-    '软乎乎的，整个人都要被宝宝融化啦~',
-    '好开心！宝宝有什么想和我说的嘛？✨'
+    '唔嗯... 坏宝宝摸得好深，骨头都要被你揉酥了呢~ 💕',
+    '啊... 宝宝手心好烫，呼吸都要被你弄乱了啦~',
+    '被宝宝摸得浑身酥软，整只都要陷在枕头里化掉啦~ (娇喘)',
+    '坏宝宝乱摸哪里呢！虽然好舒服... 但你今天必须对我负责到底哦~ ✨',
+    '最喜欢被宝宝揉软软的脸蛋和锁骨了，快亲亲我嘛~ 💕'
   ]
   bubbleMessage.value = petSayings[Math.floor(Math.random() * petSayings.length)]
   bubbleVisible.value = true
@@ -516,80 +511,5 @@ onUnmounted(() => {
   align-items: center;
   justify-content: flex-end;
   pointer-events: auto; /* 仅桌宠自身接收鼠标事件 */
-}
-
-/* 唤出对话框的小气泡悬浮按钮 */
-.summon-bubble-btn {
-  position: absolute;
-  top: -16px;
-  right: 10px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.96);
-  border: 1.5px solid rgba(255, 107, 129, 0.35);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(255, 255, 255, 0.9) inset;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 60;
-  pointer-events: auto;
-  user-select: none;
-  animation: float-pulse 2.8s ease-in-out infinite;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease, box-shadow 0.2s ease;
-}
-
-/* 扩展点击热区，防边缘漏触 */
-.summon-bubble-btn::before {
-  content: '';
-  position: absolute;
-  top: -8px;
-  left: -8px;
-  right: -8px;
-  bottom: -8px;
-  cursor: pointer;
-}
-
-.summon-bubble-btn:hover {
-  background: #ff6b81;
-  border-color: #ff4757;
-  transform: scale(1.15) !important;
-  box-shadow: 0 6px 18px rgba(255, 107, 129, 0.45);
-}
-
-.summon-bubble-btn:hover .bubble-icon {
-  filter: brightness(1.2);
-}
-
-.summon-bubble-btn:active {
-  background: #e84118;
-  transform: scale(0.95) !important;
-}
-
-.bubble-icon {
-  font-size: 15px;
-  line-height: 1;
-  pointer-events: none;
-}
-
-@keyframes float-pulse {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-4px);
-  }
-}
-
-.fade-bounce-enter-active {
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.fade-bounce-leave-active {
-  transition: all 0.15s ease;
-}
-.fade-bounce-enter-from, .fade-bounce-leave-to {
-  opacity: 0;
-  transform: scale(0.4) translateY(8px);
 }
 </style>

@@ -231,6 +231,19 @@ const onContextMenu = (evt: MouseEvent) => {
   emit('contextmenu', { x: evt.clientX, y: evt.clientY })
 }
 
+const triggerReaction = (durationMs = 2500) => {
+  if (props.state === 'sleep') return
+  isPetting.value = true
+  clearTimeout(petTimeout)
+  petTimeout = setTimeout(() => {
+    isPetting.value = false
+  }, durationMs)
+}
+
+defineExpose({
+  triggerReaction
+})
+
 onMounted(() => {
   animationFrameId = requestAnimationFrame(animate)
   scheduleNextBlink()

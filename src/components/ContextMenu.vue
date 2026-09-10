@@ -181,13 +181,15 @@ const openVoiceFolder = () => {
 }
 
 .context-menu-card {
-  width: 250px;
-  max-width: 90%;
+  width: 260px;
+  max-width: 92%;
+  max-height: 405px;
+  overflow-y: auto;
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-radius: 16px;
-  padding: 10px 12px;
+  padding: 10px 12px 10px;
   box-shadow: 0 14px 32px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.9) inset;
   user-select: none;
   pointer-events: auto;
@@ -296,26 +298,33 @@ const openVoiceFolder = () => {
 
 .menu-footer {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-top: 6px;
+  flex-direction: row;
+  gap: 8px;
+  padding-top: 8px;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .footer-btn {
-  width: 100%;
+  flex: 1;
   border: none;
-  padding: 4px;
-  border-radius: 6px;
-  font-size: 10.5px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  font-size: 11px;
   cursor: pointer;
   transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .footer-btn.finish {
   background: #f1f2f6;
   color: #2d3436;
   font-weight: 600;
+}
+
+.footer-btn.finish:hover {
+  background: #e4e7eb;
 }
 
 .footer-btn.quit {
