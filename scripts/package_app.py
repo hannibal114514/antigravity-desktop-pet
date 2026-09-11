@@ -6,9 +6,10 @@ import subprocess
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
-APP_DIR = os.path.join(PROJECT_DIR, "AntigravityPet.app")
+APP_NAME = "Antigravity Desktop Pet"
+APP_DIR = os.path.join(PROJECT_DIR, f"{APP_NAME}.app")
 
-print(f"[Package] Packaging Antigravity Desktop Pet...")
+print(f"[Package] Packaging {APP_NAME}...")
 print(f"[Package] Project Directory: {PROJECT_DIR}")
 
 # 1. 确保前端已构建
@@ -115,7 +116,7 @@ info_plist = """<?xml version="1.0" encoding="UTF-8"?>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>AntigravityPet</string>
+    <string>Antigravity Desktop Pet</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -143,10 +144,28 @@ with open(os.path.join(contents_dir, "Info.plist"), "w", encoding="utf-8") as f:
 print(f"[Package] Successfully packaged app to: {APP_DIR}")
 
 parent_dir = os.path.dirname(PROJECT_DIR)
-parent_app_dir = os.path.join(parent_dir, "AntigravityPet.app")
 if os.path.exists(parent_dir) and parent_dir != PROJECT_DIR and parent_dir != "/":
-    if os.path.exists(parent_app_dir):
-        shutil.rmtree(parent_app_dir)
-    shutil.copytree(APP_DIR, parent_app_dir)
-    print(f"[Package] Also synchronized to: {parent_app_dir}")
+    # 1. 同步到 /Volumes/A/Antigravity Desktop Pet.app (与用户双击直觉完全一致)
+    target_app_1 = os.path.join(parent_dir, f"{APP_NAME}.app")
+    if os.path.exists(target_app_1):
+        shutil.rmtree(target_app_1)
+    shutil.copytree(APP_DIR, target_app_1)
+    print(f"[Package] Synchronized to: {target_app_1}")
+
+    # 2. 同时保留/更新 AntigravityPet.app 兼容双击
+    target_app_2 = os.path.join(parent_dir, "AntigravityPet.app")
+    if os.path.exists(target_app_2):
+        shutil.rmtree(target_app_2)
+    shutil.copytree(APP_DIR, target_app_2)
+    print(f"[Package] Synchronized to: {target_app_2}")
+
+# 3. 安装/同步至系统 /Applications，支持 Spotlight 和聚焦搜索直接启动
+system_app_dir = f"/Applications/{APP_NAME}.app"
+try:
+    if os.path.exists(system_app_dir):
+        shutil.rmtree(system_app_dir)
+    shutil.copytree(APP_DIR, system_app_dir)
+    print(f"[Package] Installed to Applications folder: {system_app_dir}")
+except Exception as e:
+    print(f"[Package] (Optional) System /Applications install note: {e}")
 
