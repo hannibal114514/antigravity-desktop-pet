@@ -101,6 +101,10 @@
             <span>🔊 互动提示音效</span>
             <span class="toggle-status" :class="{ on: soundEnabled }">{{ soundEnabled ? '开' : '关' }}</span>
           </div>
+          <div class="menu-item-toggle nsfw-toggle" @click="toggleNsfw">
+            <span>🔞 色情模式（脱衣露胸）</span>
+            <span class="toggle-status" :class="{ on: nsfwEnabled }">{{ nsfwEnabled ? '开' : '关' }}</span>
+          </div>
         </div>
 
         <!-- 底部操作：完成 与 彻底退出按钮 -->
@@ -125,8 +129,10 @@ const props = withDefaults(defineProps<{
   soundEnabled: boolean
   voiceEnabled: boolean
   currentVoice?: string
+  nsfwEnabled?: boolean
 }>(), {
-  currentVoice: 'custom_voice'
+  currentVoice: 'custom_voice',
+  nsfwEnabled: false
 })
 
 const voiceLabel = computed(() => {
@@ -142,6 +148,7 @@ const emit = defineEmits<{
   (e: 'update:soundEnabled', val: boolean): void
   (e: 'update:voiceEnabled', val: boolean): void
   (e: 'update:currentVoice', val: string): void
+  (e: 'update:nsfwEnabled', val: boolean): void
   (e: 'open-bubble'): void
   (e: 'close'): void
   (e: 'quit-app'): void
@@ -160,6 +167,10 @@ const toggleSound = () => {
   sound.enabled = !sound.enabled
   emit('update:soundEnabled', sound.enabled)
   if (sound.enabled) sound.playPet()
+}
+
+const toggleNsfw = () => {
+  emit('update:nsfwEnabled', !props.nsfwEnabled)
 }
 
 const openVoiceFolder = () => {
@@ -183,7 +194,7 @@ const openVoiceFolder = () => {
 .context-menu-card {
   width: 260px;
   max-width: 92%;
-  max-height: 405px;
+  max-height: 435px;
   overflow-y: auto;
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(20px);
@@ -294,6 +305,10 @@ const openVoiceFolder = () => {
 
 .toggle-status.on {
   background: #2ed573;
+}
+
+.nsfw-toggle .toggle-status.on {
+  background: #ff6b81;
 }
 
 .menu-footer {

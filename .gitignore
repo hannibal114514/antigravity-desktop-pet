@@ -23,6 +23,7 @@ src-tauri/target/
 # Logs & scratch
 *.log
 scratch/
+scratch_*.png
 
 # IDE / Editor
 .vscode/

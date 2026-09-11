@@ -57,14 +57,21 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { sound } from '../utils/audio'
 import { createParticleBurst, type Particle } from '../utils/particles'
+import { petIdle, petSquint, petSleep } from '../assets/sprites'
+import petIdleNsfw from '../assets/nsfw/pet_idle.png'
+import petSquintNsfw from '../assets/nsfw/pet_squint.png'
+import petSleepNsfw from '../assets/nsfw/pet_sleep.png'
 
 export type PetState = 'idle' | 'squint' | 'sleep'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   state: PetState
   scale: number
   opacity: number
-}>()
+  nsfwEnabled?: boolean
+}>(), {
+  nsfwEnabled: false
+})
 
 const emit = defineEmits<{
   (e: 'update:state', newState: PetState): void
@@ -74,13 +81,16 @@ const emit = defineEmits<{
   (e: 'sprite-loaded'): void
 }>()
 
-// 贴图路径
-import { petIdle, petSquint, petSleep } from '../assets/sprites'
-
 const SPRITES = {
   idle: petIdle,
   squint: petSquint,
   sleep: petSleep
+}
+
+const NSFW_SPRITES = {
+  idle: petIdleNsfw,
+  squint: petSquintNsfw,
+  sleep: petSleepNsfw
 }
 
 // 内部交互状态
@@ -100,7 +110,10 @@ const currentVisualState = computed(() => {
   return 'idle'
 })
 
-const currentImageSrc = computed(() => SPRITES[currentVisualState.value])
+const currentImageSrc = computed(() => {
+  const set = props.nsfwEnabled ? NSFW_SPRITES : SPRITES
+  return set[currentVisualState.value]
+})
 
 // 呼吸起伏样式
 const breathingStyle = computed(() => {

@@ -12,12 +12,14 @@
       :soundEnabled="soundEnabled"
       :voiceEnabled="voiceEnabled"
       :currentVoice="currentVoice"
+      :nsfwEnabled="nsfwEnabled"
       @update:state="(s) => petState = s as any"
       @update:scale="(sc) => scale = sc"
       @update:opacity="(op) => opacity = op"
       @update:soundEnabled="(se) => soundEnabled = se"
       @update:voiceEnabled="(ve) => voiceEnabled = ve"
       @update:currentVoice="(v) => currentVoice = v"
+      @update:nsfwEnabled="(n) => nsfwEnabled = n"
       @open-bubble="openBubbleManually"
       @quit-app="handleQuitApp"
       @close="menuVisible = false"
@@ -47,6 +49,7 @@
         :state="petState"
         :scale="scale"
         :opacity="opacity"
+        :nsfwEnabled="nsfwEnabled"
         @update:state="(s) => petState = s"
         @pet="onPetInteraction"
         @contextmenu="openContextMenu"
@@ -86,6 +89,7 @@ const opacity = ref(1.0)
 const soundEnabled = ref(true)
 const voiceEnabled = ref(localStorage.getItem('pet_voice_enabled') !== 'false')
 const currentVoice = ref(localStorage.getItem('pet_voice_persona') || 'custom_voice')
+const nsfwEnabled = ref(localStorage.getItem('pet_nsfw_enabled') === 'true')
 
 watch(voiceEnabled, (val) => {
   localStorage.setItem('pet_voice_enabled', String(val))
@@ -228,7 +232,7 @@ const syncWindowDimensions = () => {
 
   if (menuVisible.value) {
     targetW = 320
-    targetH = 435 // 保证设置菜单完整展开，完成与退出按钮绝不截断
+    targetH = 465 // 保证设置菜单完整展开（含色情选项），完成与退出按钮绝不截断
   } else if (bubbleVisible.value) {
     targetW = 320
     targetH = 290 // 贴近角色的近距离对话气泡
@@ -261,6 +265,14 @@ const triggerReportHitRegionsDelayed = () => {
 watch([bubbleVisible, menuVisible, scale, opacity], () => {
   syncWindowDimensions()
   triggerReportHitRegionsDelayed()
+})
+
+watch(nsfwEnabled, (val) => {
+  localStorage.setItem('pet_nsfw_enabled', String(val))
+  triggerReportHitRegionsDelayed()
+  if (val) {
+    petCharacterRef.value?.triggerReaction(2200)
+  }
 })
 
 // 跨进程拖拽移动
