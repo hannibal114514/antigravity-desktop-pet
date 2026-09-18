@@ -30,9 +30,11 @@ subprocess.run([
 ], check=True)
 print("[Package] Swift binary compiled successfully!")
 
-# 3. 清理旧 app 目录
+# 3. 清理旧 app 目录（外置盘上的 AppleDouble 文件 ._ 可能导致 rmtree 竞态）
 if os.path.exists(APP_DIR):
-    shutil.rmtree(APP_DIR)
+    shutil.rmtree(APP_DIR, ignore_errors=True)
+if os.path.exists(APP_DIR):
+    subprocess.run(["rm", "-rf", APP_DIR], check=False)
 
 contents_dir = os.path.join(APP_DIR, "Contents")
 macos_dir = os.path.join(contents_dir, "MacOS")
@@ -58,8 +60,59 @@ shutil.copy(os.path.join(PROJECT_DIR, "server/bridge.js"), os.path.join(macos_di
 shutil.copy(binary_out, os.path.join(macos_dir, "AntigravityPetApp"))
 
 # 8. 启动总控脚本
-launcher_script = """#!/bin/bash
+launcher_script = r"""#!/bin/bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+LOG="${HOME}/Library/Logs/AntigravityDesktopPet.log"
+mkdir -p "$(dirname "$LOG")"
+log() { echo "$(date '+%F %T') $*" >> "$LOG"; }
+
+# Finder 启动时 PATH 不含 nvm/homebrew，必须自己把 node 找出来
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+if [ -s "$NVM_DIR/nvm.sh" ]; then
+  # nvm.sh 在非交互 shell 里会访问未绑定变量，关闭 nounset
+  set +u
+  # shellcheck disable=SC1091
+  . "$NVM_DIR/nvm.sh"
+  set +u
+fi
+if [ -d "$NVM_DIR/versions/node" ]; then
+  for nodedir in "$NVM_DIR/versions/node"/*/bin; do
+    export PATH="$nodedir:$PATH"
+  done
+fi
+
+find_node() {
+  command -v node 2>/dev/null && return 0
+  local candidate
+  for candidate in \
+    "$HOME/.nvm/versions/node/v24.16.0/bin/node" \
+    /opt/homebrew/bin/node \
+    /usr/local/bin/node \
+    "$HOME/.local/bin/node"
+  do
+    if [ -x "$candidate" ]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  local latest
+  latest="$(ls -1d "$HOME/.nvm/versions/node"/v* 2>/dev/null | tail -1)"
+  if [ -n "$latest" ] && [ -x "$latest/bin/node" ]; then
+    echo "$latest/bin/node"
+    return 0
+  fi
+  return 1
+}
+
+NODE_BIN="$(find_node || true)"
+log "launch dir=$DIR node=${NODE_BIN:-MISSING} PATH=$PATH"
+
+if [ -z "$NODE_BIN" ]; then
+  log "ERROR: node not found"
+  osascript -e 'display dialog "打不开桌宠：系统找不到 Node.js。\n请先安装 Node，或在终端执行：\nopen \"/Volumes/A/antigravity-desktop-pet/Antigravity Desktop Pet.app\"" buttons {"好"} default button 1 with title "Antigravity Desktop Pet"' >/dev/null 2>&1 || true
+  exit 1
+fi
 
 # 杀死残余旧服务与旧实例
 pkill -f "bridge.js" 2>/dev/null || true
@@ -67,8 +120,23 @@ pkill -f "AntigravityPetApp" 2>/dev/null || true
 sleep 0.4
 
 # 启动本地同源服务
-node "$DIR/server/bridge.js" >/dev/null 2>&1 &
-sleep 0.5
+"$NODE_BIN" "$DIR/server/bridge.js" >> "$LOG" 2>&1 &
+BRIDGE_PID=$!
+log "bridge pid=$BRIDGE_PID"
+
+ready=0
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+  if curl -s --max-time 0.3 http://127.0.0.1:1421/ >/dev/null 2>&1; then
+    ready=1
+    break
+  fi
+  sleep 0.2
+done
+if [ "$ready" -ne 1 ]; then
+  log "ERROR: bridge did not listen on :1421"
+  osascript -e 'display dialog "桌宠后台服务没有启动成功（端口 1421）。\n详情见：~/Library/Logs/AntigravityDesktopPet.log" buttons {"好"} default button 1 with title "Antigravity Desktop Pet"' >/dev/null 2>&1 || true
+  exit 1
+fi
 
 # 检查并在后台启动 Audio8_TTS 伴生语音服务（若尚未启动且存在）
 if ! curl -s --max-time 1 http://127.0.0.1:8024/api/health >/dev/null 2>&1; then
@@ -82,14 +150,14 @@ if ! curl -s --max-time 1 http://127.0.0.1:8024/api/health >/dev/null 2>&1; then
     export ARKTTS_PRECISION="int8"
     export ARKTTS_CODEC_PRECISION="fp16"
     export ARKTTS_THREADS="4"
-    "$AUDIO8_DIR/venv/bin/python3" -m uvicorn arktts_runtime.service:app \\
-      --app-dir "$AUDIO8_DIR/onnx_runtime_0_1b_int8" \\
-      --host 127.0.0.1 \\
-      --port 8024 >/dev/null 2>&1 &
+    "$AUDIO8_DIR/venv/bin/python3" -m uvicorn arktts_runtime.service:app \
+      --app-dir "$AUDIO8_DIR/onnx_runtime_0_1b_int8" \
+      --host 127.0.0.1 \
+      --port 8024 >> "$LOG" 2>&1 &
   fi
 fi
 
-# 启动原生浮窗程序
+log "starting native window"
 exec "$DIR/AntigravityPetApp"
 """
 
@@ -120,13 +188,13 @@ info_plist = """<?xml version="1.0" encoding="UTF-8"?>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.5</string>
+    <string>1.0.8</string>
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
     <string>11.0</string>
     <key>LSUIElement</key>
-    <true/>
+    <false/>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSAppTransportSecurity</key>
@@ -143,29 +211,20 @@ with open(os.path.join(contents_dir, "Info.plist"), "w", encoding="utf-8") as f:
 
 print(f"[Package] Successfully packaged app to: {APP_DIR}")
 
-parent_dir = os.path.dirname(PROJECT_DIR)
-if os.path.exists(parent_dir) and parent_dir != PROJECT_DIR and parent_dir != "/":
-    # 1. 同步到 /Volumes/A/Antigravity Desktop Pet.app (与用户双击直觉完全一致)
-    target_app_1 = os.path.join(parent_dir, f"{APP_NAME}.app")
-    if os.path.exists(target_app_1):
-        shutil.rmtree(target_app_1)
-    shutil.copytree(APP_DIR, target_app_1)
-    print(f"[Package] Synchronized to: {target_app_1}")
-
-    # 2. 同时保留/更新 AntigravityPet.app 兼容双击
-    target_app_2 = os.path.join(parent_dir, "AntigravityPet.app")
-    if os.path.exists(target_app_2):
-        shutil.rmtree(target_app_2)
-    shutil.copytree(APP_DIR, target_app_2)
-    print(f"[Package] Synchronized to: {target_app_2}")
-
-# 3. 安装/同步至系统 /Applications，支持 Spotlight 和聚焦搜索直接启动
+# Only install the canonical copy in /Applications.
+# Extra copies on /Volumes/A and in the project folder show up as identical Launchpad icons.
 system_app_dir = f"/Applications/{APP_NAME}.app"
 try:
     if os.path.exists(system_app_dir):
-        shutil.rmtree(system_app_dir)
+        shutil.rmtree(system_app_dir, ignore_errors=True)
+    if os.path.exists(system_app_dir):
+        subprocess.run(["rm", "-rf", system_app_dir], check=False)
     shutil.copytree(APP_DIR, system_app_dir)
     print(f"[Package] Installed to Applications folder: {system_app_dir}")
+    # Drop the project-folder copy so Launchpad only shows Applications.
+    shutil.rmtree(APP_DIR, ignore_errors=True)
+    if os.path.exists(APP_DIR):
+        subprocess.run(["rm", "-rf", APP_DIR], check=False)
 except Exception as e:
     print(f"[Package] (Optional) System /Applications install note: {e}")
 

@@ -123,11 +123,42 @@ const OFFLINE_REPLIES_CUSTOM = {
   ]
 }
 
-function getOfflineReply(userText, voice = 'custom_voice') {
+const OFFLINE_REPLIES_YUHUO = {
+  status: [
+    '宝宝~ 渔获的系统和心跳都为你火热运转呢，快来陪我小酌一杯嘛~ 💕',
+    '后台一切顺畅得很，随时听候心上人差遣哦，今晚可不许冷落我呀~ ✨'
+  ],
+  pet: [
+    '唔嗯... 坏宝宝乱摸哪里呢，人家才微醺一点点，身子全被你揉酥啦~(娇喘)',
+    '啊... 宝宝手心好烫，贴在人家锁骨上，心跳都要为你漏跳半拍了啦~ 💕',
+    '被宝宝这样轻柔抚摸，整个人都软绵绵地陷在软枕里任你摆布啦~',
+    '轻一点嘛坏蛋... 再摸下去，渔获可就要借着酒劲扑倒你做坏事了哦~ ✨'
+  ],
+  tired: [
+    '宝宝写代码辛苦啦，来尝尝渔获给你温好的酒，还是... 先尝尝我的唇？☕️',
+    '累了别硬撑，把头枕在渔获怀里歇会儿，软软香香的，给你充满电~ 💕',
+    '喝太多伤身，但如果是醉在宝宝怀里，渔获一千个一万个乐意呢~ 🌿'
+  ],
+  praise: [
+    '被宝宝这么一夸，脸颊比喝了烈酒还烫呢... 快亲亲我降降温嘛~ 💕',
+    '嘻嘻，宝宝嘴这么甜，今晚必须借着微醺让我好好尝个够~ ⭐',
+    '最喜欢被宝宝哄着了！今晚渔获整个人都是属于你一个人的哦~ 🎉'
+  ],
+  default: [
+    '宝宝好呀~ 今晚想跟微醺可爱的渔获小酌一杯、促膝温存吗？💕',
+    '悄悄跟宝宝说，微醺的时候... 人家可是一切都顺着你、任你欺负的哦~ ✨',
+    '坏蛋宝宝，一直盯着我发呆，是不是想把可爱的渔获一口吃掉呀？(娇笑)',
+    '代码写累了就来摸摸渔获嘛，人家随你怎么摆布都可以哦~ 💕'
+  ]
+}
+
+function getOfflineReply(userText, voice = 'yuhuo') {
   const lower = (userText || '').toLowerCase()
-  let source = OFFLINE_REPLIES_CUSTOM
-  if (voice === 'changli') source = OFFLINE_REPLIES_CHANGLI
+  let source = OFFLINE_REPLIES_YUHUO
+  if (voice === 'yuhuo' || voice === '渔获') source = OFFLINE_REPLIES_YUHUO
+  else if (voice === 'changli') source = OFFLINE_REPLIES_CHANGLI
   else if (voice === 'feibi') source = OFFLINE_REPLIES
+  else if (voice === 'custom_voice') source = OFFLINE_REPLIES_CUSTOM
 
   if (lower.includes('状态') || lower.includes('agent') || lower.includes('antigravity') || lower.includes('运行')) {
     return source.status[Math.floor(Math.random() * source.status.length)]
@@ -228,7 +259,9 @@ async function callAntigravityAI(userPrompt, modelName = 'gemini-3.8-flash', voi
   }
 
   let personaHint = ''
-  if (voice === 'changli') {
+  if (voice === 'yuhuo' || voice === '渔获') {
+    personaHint = '[伴读角色：你是「渔获」，深爱用户并称呼用户为「宝宝」，自称「渔获」。你的性格灵动娇俏、随性微醺，带着纯欲撩人与可爱撒娇的独特风情，喜欢和宝宝耳语心事与小酌温存。请以极度撩人、轻柔耳语般的1句短句（15-25字以内，适合原声朗读）回复，请勿长篇大论。]'
+  } else if (voice === 'changli') {
     personaHint = '[伴读角色：你是「长离」（今州令尹参事），对心上人（用户）极尽宠溺与暗送秋波。称呼用户为「宝宝」，自称「长离」。你的性格温雅端庄却又暗藏离火般炽热撩人的深情与暧昧挑逗，擅长用酥软温存、欲语还休的言辞让宝宝心跳加速。请以极度撩人、轻柔耳语般的1句短句（15-25字以内，适合原声朗读）回复，请勿长篇大论。]'
   } else if (voice === 'feibi') {
     personaHint = '[伴读角色：你是金发软萌的少女桌宠「菲比」，超级粘人又爱撩拨使坏，称呼用户为「宝宝」，自称「菲比」。你对宝宝毫无防备，满脑子都是和宝宝贴贴、撒娇娇喘、软媚求抱抱。请以极度纯欲撩人、酥软甜腻的1句短句（15-25字以内）回复，请勿长篇大论。]'
@@ -280,7 +313,9 @@ async function callGeminiAI(userPrompt, modelName = 'gemini-3.8-flash', voice = 
   if (!apiKey) return null
 
   let systemInstruction = ''
-  if (voice === 'changli') {
+  if (voice === 'yuhuo' || voice === '渔获') {
+    systemInstruction = `你是「渔获」，深爱着用户并称呼用户为「宝宝」，自称「渔获」。你的性格灵动娇俏、随性微醺，带着纯欲撩人与可爱撒娇的独特风情，喜欢和宝宝耳语心事与小酌温存。请以极度撩人、轻柔耳语般的1句短句（15-25字以内，适合桌宠气泡与原声伴读）回答宝宝。`
+  } else if (voice === 'changli') {
     systemInstruction = `你是「长离」（今州令尹参事），对心上人（用户）极尽宠溺与暗送秋波。称呼用户为「宝宝」，自称「长离」。你的性格温雅端庄却又暗藏离火般炽热撩人的深情与暧昧挑逗，擅长用酥软温存、欲语还休的言辞让宝宝心跳加速。请以极度撩人、轻柔耳语般的1句短句（15-25字以内，适合桌宠气泡与原声伴读）回答宝宝。`
   } else if (voice === 'feibi') {
     systemInstruction = `你是一个桌面宠物小精灵「菲比」，外表是金发纯欲少女。你超级粘人又爱撩拨使坏，称呼用户为「宝宝」，自称「菲比」。你对宝宝毫无防备，满脑子都是和宝宝贴贴、撒娇娇喘、软媚求抱抱。请以极度纯欲撩人、酥软甜腻的1句短句（15-25字以内）回答宝宝。`
@@ -335,17 +370,23 @@ async function synthesizeVoice(text, voiceName = 'custom_voice') {
     cleanText = cleanText.slice(0, 160)
   }
 
-  let targetVoice = 'custom_voice'
-  let destName = '专属原声_最新语音.wav'
-  if (voiceName === 'changli') {
+  let targetVoice = 'yuhuo'
+  let destName = '渔获_最新语音.wav'
+  if (voiceName === 'yuhuo' || voiceName === '渔获') {
+    targetVoice = 'yuhuo'
+    destName = '渔获_最新语音.wav'
+  } else if (voiceName === 'custom_voice') {
+    targetVoice = 'custom_voice'
+    destName = '专属原声_最新语音.wav'
+  } else if (voiceName === 'changli') {
     targetVoice = 'changli'
     destName = '长离_最新语音.wav'
   } else if (voiceName === 'feibi') {
     targetVoice = 'feibi'
     destName = '菲比_最新语音.wav'
   } else {
-    targetVoice = 'custom_voice'
-    destName = '专属原声_最新语音.wav'
+    targetVoice = 'yuhuo'
+    destName = '渔获_最新语音.wav'
   }
 
   console.log(`[Audio8 TTS] Synthesizing speech for: "${cleanText}" (voice: ${targetVoice})`)

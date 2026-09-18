@@ -58,9 +58,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { sound } from '../utils/audio'
 import { createParticleBurst, type Particle } from '../utils/particles'
 import { petIdle, petSquint, petSleep } from '../assets/sprites'
-import petIdleNsfw from '../assets/nsfw/pet_idle.png'
-import petSquintNsfw from '../assets/nsfw/pet_squint.png'
-import petSleepNsfw from '../assets/nsfw/pet_sleep.png'
+import { petIdleNsfw, petSquintNsfw, petSleepNsfw } from '../assets/nsfwSprites'
 
 export type PetState = 'idle' | 'squint' | 'sleep'
 

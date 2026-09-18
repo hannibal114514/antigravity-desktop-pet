@@ -122,11 +122,16 @@ open AntigravityPet.app
 
 ---
 
+色情模式贴图如何用本机 ComfyUI 绘制，见 [README-comfyui.md](README-comfyui.md)。
+
+---
+
 ## 🤝 贡献与感谢 (Credits)
 
 - **AI 赋能**：[Google Antigravity](https://deepmind.google/) & Gemini 3.8
 - **语音引擎**：Audio8-TTS / ArkTTS 深度学习端侧推理引擎
 - **作者**：[hannibal114514](https://github.com/hannibal114514)
+- **ComfyUI 出图记录**：Cursor
 
 ---
 

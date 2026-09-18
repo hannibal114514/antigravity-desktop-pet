@@ -63,10 +63,16 @@
           <div class="section-label">伴读声线（Audio8 原声克隆）</div>
           <div class="btn-group">
             <button 
+              :class="{ active: currentVoice === 'yuhuo' || currentVoice === '渔获' }" 
+              @click="setVoice('yuhuo')"
+            >
+              🐟 渔获
+            </button>
+            <button 
               :class="{ active: currentVoice === 'custom_voice' }" 
               @click="setVoice('custom_voice')"
             >
-              🌟 专属原声
+              🌟 专属
             </button>
             <button 
               :class="{ active: currentVoice === 'changli' }" 
@@ -102,7 +108,7 @@
             <span class="toggle-status" :class="{ on: soundEnabled }">{{ soundEnabled ? '开' : '关' }}</span>
           </div>
           <div class="menu-item-toggle nsfw-toggle" @click="toggleNsfw">
-            <span>🔞 色情模式（脱衣露胸）</span>
+            <span>🔞 色情模式（侧躺掀衣露胸）</span>
             <span class="toggle-status" :class="{ on: nsfwEnabled }">{{ nsfwEnabled ? '开' : '关' }}</span>
           </div>
         </div>
@@ -131,11 +137,12 @@ const props = withDefaults(defineProps<{
   currentVoice?: string
   nsfwEnabled?: boolean
 }>(), {
-  currentVoice: 'custom_voice',
+  currentVoice: 'yuhuo',
   nsfwEnabled: false
 })
 
 const voiceLabel = computed(() => {
+  if (props.currentVoice === 'yuhuo' || props.currentVoice === '渔获') return '渔获原声'
   if (props.currentVoice === 'custom_voice') return '专属原声'
   if (props.currentVoice === 'feibi') return '菲比原声'
   return '长离原声'
